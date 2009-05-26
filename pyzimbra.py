@@ -14,7 +14,7 @@ class PyZimbra(object):
             raise ValueError, "Server is undefined"
         self.server = server
 
-    def build_soap_header(self):
+    def build_soap_envelope(self):
         namespace = 'http://www.w3.org/2003/05/soap-envelope'
 
         # create XML DOM document
@@ -40,7 +40,7 @@ class PyZimbra(object):
         return doc
 
     def authenticate(self, username, password):
-        doc = self.build_soap_header()
+        doc = self.build_soap_envelope()
 
         body = doc.getElementsByTagName('soap:Body')[0]
 
