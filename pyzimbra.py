@@ -14,7 +14,9 @@ class PyZimbra(object):
             raise ValueError, "Server is undefined"
         self.server = server
         self.auth_token = ''
-
+        self.session_id = ''
+        self._last_response = None
+        self.username = None
 
     def build_soap_envelope(self):
         namespace = 'http://www.w3.org/2003/05/soap-envelope'
@@ -41,12 +43,46 @@ class PyZimbra(object):
             auth_token.appendChild(doc.createTextNode(self.auth_token))
             context.appendChild(auth_token)
 
+        if self.session_id != '':
+            session_id = doc.createElement('sessionId')
+            session_id.setAttribute('id', self.session_id)
+
         body = doc.createElement('soap:Body')
         soapenv.appendChild(body)
 
         #PrettyPrint(doc)
         return doc
 
+    def _send_request(self, doc):
+        con = HTTPSConnection(self.server)
+
+        soapString = StringIO.StringIO()
+        PrettyPrint(doc, soapString)
+        soapString = soapString.getvalue()
+
+        con.request('POST', '/service/soap', soapString)
+        res = con.getresponse()
+        response = res.read()
+        doc = minidom.parseString(response)
+
+        # Check for session id and change id and set them
+        
+        c = self._get_context(doc)
+        e = xml.xpath.Compile('//context/sessionId/text()')
+        result = e.evaluate(c)
+        if len(result) > 0:
+            self.session_id = (result[0]).data
+
+
+        e = xml.xpath.Compile('//context/change/@token')
+        result = e.evaluate(c)
+        if len(result) > 0:
+            self.change_id = (result[0]).value
+
+        self._last_response = doc
+
+        return doc
+    
     def authenticate(self, username, password):
         doc = self.build_soap_envelope()
 
@@ -63,22 +99,8 @@ class PyZimbra(object):
         auth_request.appendChild(password_node)
         body.appendChild(auth_request)
 
-        soapString = StringIO.StringIO()
+        doc = self._send_request(doc)
         
-        PrettyPrint(doc, soapString)
-        
-        soapString = soapString.getvalue()
-
-        con = HTTPSConnection(self.server)
-
-        con.request('POST', '/service/soap', soapString)
-        res = con.getresponse()
-        response = res.read()
-        doc = minidom.parseString(response)
-        #PrettyPrint(doc_node)
-
-        #return doc_node
-
         c = self._get_context(doc)
         e = xml.xpath.Compile('//soap:Body/AuthResponse/authToken/text()')
 
@@ -88,9 +110,9 @@ class PyZimbra(object):
             e = xml.xpath.Compile('//soap:Body/soap:Fault/soap:Reason/soap:Text/text()')
             self.error_text = (e.evaluate(c)[0]).data
             return False
+        
+        self.username = username
 
-        e = xml.xpath.Compile('//soap:Body/AuthResponse/sessionId/text()')
-        self.session_id = (e.evaluate(c)[0]).data
         return True
 
 
