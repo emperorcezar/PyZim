@@ -13,6 +13,8 @@ class PyZimbra(object):
         if server == '' or not server:
             raise ValueError, "Server is undefined"
         self.server = server
+        self.auth_token = ''
+
 
     def build_soap_envelope(self):
         namespace = 'http://www.w3.org/2003/05/soap-envelope'
@@ -32,6 +34,12 @@ class PyZimbra(object):
 
         context = doc.createElementNS("urn:zimbra", "context")
         header.appendChild(context)
+
+        # If we have and authToken, use it
+        if self.auth_token != '':
+            auth_token = doc.createElement('authToken')
+            auth_token.appendChild(doc.createTextNode(self.auth_token))
+            context.appendChild(auth_token)
 
         body = doc.createElement('soap:Body')
         soapenv.appendChild(body)
@@ -82,7 +90,8 @@ class PyZimbra(object):
             return False
 
         e = xml.xpath.Compile('//soap:Body/AuthResponse/sessionId/text()')
-        self.auth_token = (e.evaluate(c)[0]).data
+        self.session_id = (e.evaluate(c)[0]).data
+        return True
 
 
     def _get_context(self, doc):
