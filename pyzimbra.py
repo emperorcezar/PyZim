@@ -73,7 +73,14 @@ class PyZimbra(object):
 
         c = self._get_context(doc)
         e = xml.xpath.Compile('//soap:Body/AuthResponse/authToken/text()')
-        self.auth_token = (e.evaluate(c)[0]).data
+
+        try:
+            self.auth_token = (e.evaluate(c)[0]).data
+        except IndexError:
+            e = xml.xpath.Compile('//soap:Body/soap:Fault/soap:Reason/soap:Text/text()')
+            self.error_text = (e.evaluate(c)[0]).data
+            return False
+
         e = xml.xpath.Compile('//soap:Body/AuthResponse/sessionId/text()')
         self.auth_token = (e.evaluate(c)[0]).data
 
