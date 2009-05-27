@@ -7,7 +7,7 @@ from xml.dom import minidom
 from xml import xpath
 import xml
 
-class PyZimbra(object):
+class PyZim(object):
 
     def __init__(self, server):
         if server == '' or not server:
