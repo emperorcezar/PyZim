@@ -17,6 +17,7 @@ class PyZim(object):
         self.session_id = ''
         self._last_response = None
         self.username = None
+        self._calendar_id = None
 
     def build_soap_envelope(self):
         namespace = 'http://www.w3.org/2003/05/soap-envelope'
@@ -46,12 +47,25 @@ class PyZim(object):
         if self.session_id != '':
             session_id = doc.createElement('sessionId')
             session_id.setAttribute('id', self.session_id)
+            session_id.appendChild(doc.createTextNode(self.session_id))
+            context.appendChild(session_id)
 
         body = doc.createElement('soap:Body')
         soapenv.appendChild(body)
 
         #PrettyPrint(doc)
         return doc
+
+    def _get_info(self):
+        doc = self.build_soap_envelope()
+        PrettyPrint(doc)
+
+        body = doc.getElementsByTagName('soap:Body')[0]
+
+        info_request = doc.createElementNS('urn:zimbraAccount', 'GetInfoRequest')
+        body.appendChild(info_request)
+
+        PrettyPrint(self._send_request(doc))
 
     def _send_request(self, doc):
         con = HTTPSConnection(self.server)
@@ -100,6 +114,7 @@ class PyZim(object):
         body.appendChild(auth_request)
 
         doc = self._send_request(doc)
+        self._last_auth = doc
         
         c = self._get_context(doc)
         e = xml.xpath.Compile('//soap:Body/AuthResponse/authToken/text()')
@@ -112,6 +127,11 @@ class PyZim(object):
             return False
         
         self.username = username
+
+        # Get some information from the refresh
+        e = xml.xpath.Compile("//soap:Header/context/refresh/folder/folder[@name='Calendar']")
+        self._calendar_id = (e.evaluate(c)[0]).attributes['id'].value
+
 
         return True
 
