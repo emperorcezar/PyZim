@@ -78,4 +78,40 @@ class ZimCalendar(pyzim.PyZim):
 
         return appointments
 
+    def get_appointment(self):
+        raise NotImplementedError
+
+    def create_appointment(self):
+        raise NotImplementedError
+
+    def modify_appointment(self):
+        raise NotImplementedError
+
+    def cancel_appointment(self):
+        raise NotImplementedError
+
+    def get_free_or_busy(self):
+        raise NotImplementedError
+
+    def get_recurance(self):
+        raise NotImplementedError
+
+    def check_recurance_conficts(self):
+        raise NotImplementedError
+
+    def get_ical(self):
+        raise NotImplementedError
+
+    def send_invite_reply(self):
+        raise NotImplementedError
+
+    def import_appointment_request(self):
+        raise NotImplementedError
+
+    def dismiss_calendar_item_alarm(self):
+        raise NotImplementedError
+
+    def get_mini_cal_request(self):
+        raise NotImplementedError
+
     
