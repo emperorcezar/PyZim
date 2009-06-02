@@ -135,6 +135,42 @@ class PyZim(object):
 
         return True
 
+    def change_password(self, username, old_password, new_password, virtual_host = None):
+        doc = self.build_soap_envelope()
+
+        body = doc.getElementsByTagName('soap:Body')[0]
+
+        request = doc.createElementNS('urn:zimbraAccount', 'ChangePasswordRequest')
+
+        account = request.appendChild(doc.createElement('account'))
+        account.setAttribute('by', 'name')
+        account.appendChild(doc.createTextNode(username))
+
+        old_password_node = request.appendChild(doc.createElement('oldPassword'))
+        old_password_node.appendChild(doc.createTextNode(old_password))
+
+        new_password_node = request.appendChild(doc.createElement('password'))
+        new_password_node.appendChild(doc.createTextNode(new_password))
+
+        body.appendChild(request)
+        
+        if virtual_host:
+            virtual_host_node = request.appendChild(doc.createElement('virtualHost'))
+            virtual_host_node.appendChild(doc.createTextNode(virtual_host))
+
+
+
+        doc = self._send_request(doc)
+                
+        c = self._get_context(doc)
+        e = xml.xpath.Compile('//ChangePasswordResponse')
+
+        result = e.evaluate(c)
+
+        if len(result) == 0:
+            return False
+        else:
+            return True
 
     def _get_context(self, doc):
         c = xml.xpath.CreateContext(doc)
