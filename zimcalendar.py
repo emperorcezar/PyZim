@@ -39,7 +39,7 @@ class Appointment(object):
             comp = results[0]
 
             self.name = comp.attributes['name'].value
-            self.date = comp.attributes['d'].value
+            self.date = int(comp.attributes['d'].value)
             self.id = doc.attributes['id'].value
             
             try:
@@ -50,17 +50,17 @@ class Appointment(object):
                 e = xml.xpath.Compile('//appt/inv/comp/s')
                 results = e.evaluate(c)
                 a = results[0]
-                self.start = a.attributes['d'].value
+                self.start = int(a.attributes['d'].value)
 
                 e = xml.xpath.Compile('//appt/inv/comp/e')
                 results = e.evaluate(c)
                 e = results[0]
-                self.end = a.attributes['d'].value
+                self.end = int(a.attributes['d'].value)
 
         else:
             # Probably a search result
             self.name = doc.attributes['name'].value
-            self.date = doc.attributes['d'].value
+            self.date = int(doc.attributes['d'].value)
             self.id = doc.attributes['id'].value
             
             try:
@@ -68,35 +68,74 @@ class Appointment(object):
             except KeyError:
                 self.all_day = 0
             if self.all_day == 0:
-                self.duration = doc.attributes['dur'].value
-                inst = doc.getElementsByTagName('inst')[0]
-                self.start = inst.attributes['s'].value
+                self.duration = int(doc.attributes['dur'].value)
+                inst = doc.getElementsByTagName('inst')
 
+                if len(inst) > 0:
+                    self.start = int(inst.attributes['s'].value)
+                else:
+                    self.start = self.date
+                    self.end = int(self.start) + int(self.duration)
         
         
 
 class ZimCalendar(pyzim.PyZim):
     def init(self, server):
         super(ZimCalendar, self).__init__(server)
-    
-    def get_current_month(self):
+
+    def search(self, query_string = '', start = None, end = None):
         '''
-        Get all appointments for the current month
+        General Search. Returns Appointments
         '''
+
         doc = self.build_soap_envelope()
         body = doc.getElementsByTagName('soap:Body')[0]
 
         search_request = doc.createElementNS('urn:zimbraMail', 'SearchRequest')
 
-        now = datetime.datetime.now()
+        if start:
+            start_date = int(start * 1000)
+            search_request.setAttribute('calExpandInstStart', str(start_date))
+        if end:
+            end_date = int(end * 1000)
+            search_request.setAttribute('calExpandInstEnd', str(end_date))
 
-        start_date = time.mktime(time.strptime(str(now.month) + '/1/' + str(now.year) ,"%m/%d/%Y"))
-        end_date = time.mktime(time.strptime(
-            str(now.month) + '/' + str(calendar.monthrange(now.year, now.month)[1]) + '/' + str(now.year) ,"%m/%d/%Y")
-                                     )
+        search_request.setAttribute('types', 'appointment,task')
 
-        start_date = int(start_date * 1000)
-        end_date = int(end_date * 1000)
+        query = search_request.appendChild(doc.createElement('query'))
+        query.appendChild(doc.createTextNode('inid:' + str(self._calendar_id) + ' ' + query_string))
+
+        body.appendChild(search_request)
+
+        doc = self._send_request(doc)
+
+        appts = doc.getElementsByTagName('appt')
+
+        if len(appts) == 0:
+            return []
+
+        appointments = []
+        for appt in appts:
+            appointments.append(Appointment(xml = appt))
+
+        return appointments
+
+
+        
+
+    def get_appointments_by_date(self, start, end):
+        '''
+        Get all appointments for the given start and end date/time.
+        Note that date/times are given in seconds since the epoch "unix time"
+        '''
+
+        doc = self.build_soap_envelope()
+        body = doc.getElementsByTagName('soap:Body')[0]
+
+        search_request = doc.createElementNS('urn:zimbraMail', 'SearchRequest')
+
+        start_date = int(start * 1000)
+        end_date = int(end * 1000)
 
         search_request.setAttribute('calExpandInstStart', str(start_date))
         search_request.setAttribute('calExpandInstEnd', str(end_date))
@@ -121,6 +160,21 @@ class ZimCalendar(pyzim.PyZim):
 
         return appointments
 
+
+    
+    def get_current_month(self):
+        '''
+        Get all appointments for the current month
+        '''
+        now = datetime.datetime.now()
+
+        start_date = time.mktime(time.strptime(str(now.month) + '/1/' + str(now.year) ,"%m/%d/%Y"))
+        end_date = time.mktime(time.strptime(
+            str(now.month) + '/' + str(calendar.monthrange(now.year, now.month)[1]) + '/' + str(now.year) ,"%m/%d/%Y")
+                                     )
+
+        return self.get_appointments_by_date(start_date, end_date)
+
     def get_appointment(self, id):
         doc = self.build_soap_envelope()
         body = doc.getElementsByTagName('soap:Body')[0]
@@ -129,7 +183,6 @@ class ZimCalendar(pyzim.PyZim):
         body.appendChild(search_request)
 
         # Zimbra sends different xml when you only request a singular event
-
 
         doc = self._send_request(doc)
 
