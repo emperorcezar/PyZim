@@ -132,6 +132,34 @@ class PyZim(object):
         e = xml.xpath.Compile("//soap:Header/context/refresh/folder/folder[@name='Calendar']")
         self._calendar_id = (e.evaluate(c)[0]).attributes['id'].value
 
+        # Now get other pertinent information
+        
+        doc = self.build_soap_envelope()
+
+        body = doc.getElementsByTagName('soap:Body')[0]
+
+        request = doc.createElementNS('urn:zimbraAccount', 'GetAccountInfoRequest')
+
+        account = request.appendChild(doc.createElement('account'))
+        account.setAttribute('by', 'name')
+        account.appendChild(doc.createTextNode(username))
+       
+        body.appendChild(request)
+
+        doc = self._send_request(doc)
+                
+        c = self._get_context(doc)
+        e = xml.xpath.Compile('//attr')
+
+        results = e.evaluate(c)
+
+        # Here we get the basic user info like email and id
+        for result in results:
+            if result.attributes['name'].value == 'zimbraId':
+                self.zimbraId = result.firstChild.data
+
+            if result.attributes['name'].value == 'zimbraMailHost':
+                self.zimbraMailHost = result.firstChild.data
 
         return True
 

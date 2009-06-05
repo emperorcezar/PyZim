@@ -204,6 +204,12 @@ class ZimCalendar(pyzim.PyZim):
         raise NotImplementedError
 
     def get_free_or_busy(self):
+        doc = self.build_soap_envelope()
+        body = doc.getElementsByTagName('soap:Body')[0]
+
+        search_request = doc.createElementNS('urn:zimbraMail', 'GetFreeBusyRequest')
+        search_request.setAttribute('name', str(id))
+        
         raise NotImplementedError
 
     def get_recurance(self):
